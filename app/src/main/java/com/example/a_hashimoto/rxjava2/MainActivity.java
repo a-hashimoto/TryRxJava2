@@ -1,7 +1,8 @@
 package com.example.a_hashimoto.rxjava2;
 
-import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -9,7 +10,9 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import io.reactivex.Notification;
+import java.util.concurrent.TimeUnit;
+
+import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -17,13 +20,17 @@ import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.BiConsumer;
+import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
+import io.reactivex.observers.DisposableObserver;
 import io.reactivex.observers.DisposableSingleObserver;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.ReplaySubject;
 
 public class MainActivity extends AppCompatActivity {
 
+    public static final String ANDROID_PERMISSION_RECEIVE_BOOT_COMPLETED = "android.permission.RECEIVE_BOOT_COMPLETED";
     private TextView textView;
     private ProgressBar progressDialog;
     private ProgressBar progressBar;
@@ -33,10 +40,123 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Log.d("intent", "intent");
+
         textView = (TextView) findViewById(R.id.text);
         progressBar = (ProgressBar) findViewById(R.id.progress);
 
-        load();
+        Intent intent = new Intent();
+
+    }
+
+    private void subject() {
+
+        final ReplaySubject<String> replaySubject = ReplaySubject.create();
+
+        Observable.just("A","B","C")
+                .subscribe(replaySubject);
+
+        Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                replaySubject.subscribe(new DisposableObserver<String>() {
+                    @Override
+                    public void onNext(@NonNull String s) {
+                        Log.d("RxSample", "onNext : " + s);
+
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.d("RxSample", "onError : " + e);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d("RxSample", "onComplete");
+                    }
+                });
+            }
+        }, 450);
+
+    }
+
+//        final BehaviorSubject<String> behaviorSubject = BehaviorSubject.create();
+//        final BehaviorSubject<String> behaviorSubjectDefault = BehaviorSubject.createDefault("1");
+
+//        final PublishSubject<String> publishSubject = PublishSubject.create();
+//        ReplaySubject<Object> replaySubject = ReplaySubject.create();
+//        replaySubject.
+//
+//
+//        Observable.just("A", "B", "C")
+//                .subscribe(publishSubject);
+
+
+//        handler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//
+//                publishSubject.subscribe(new DisposableObserver<String>() {
+//                    @Override
+//                    public void onNext(@NonNull String s) {
+//                        Log.d("RxSample", "onNext : " + s);
+//
+//                    }
+//
+//                    @Override
+//                    public void onError(@NonNull Throwable e) {
+//                        Log.d("RxSample", "onError : " + e);
+//                    }
+//
+//                    @Override
+//                    public void onComplete() {
+//                        Log.d("RxSample", "onComplete");
+//                    }
+//                });
+//            }
+//        },1000);
+
+
+    private void doOnTerminate() {
+        Observable
+                .just(1)
+//                .error(new RuntimeException())
+                .doOnTerminate(new Action() {
+                    @Override
+                    public void run() throws Exception {
+                        Log.d("RxSample", "doOnTerminate");
+                    }
+                })
+                .subscribe(new Consumer<Object>() {
+                    @Override
+                    public void accept(Object o) throws Exception {
+
+                    }
+                });
+    }
+
+    private void parse() {
+        Completable.complete()
+                .toObservable()
+                .subscribe(new DisposableObserver() {
+                    @Override
+                    public void onNext(@NonNull Object o) {
+                        Log.d("parse", "onNext" + o);
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.d("parse", "onError" + e);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d("parse", "onComplete");
+
+                    }
+                });
     }
 
     private void load() {
@@ -74,7 +194,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
-
 
     private Single<String> getUserName() {
         return Single.just("Android")
@@ -208,9 +327,108 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void single() {
-        Single.just(1)
-                .subscribe()
+    private void zip() {
+        Observable.zip(
+                Observable.just(1, 2, 3)
+                , Observable.just(10, 20, 30, 40)
+                , new BiFunction<Integer, Integer, String>() {
+                    @Override
+                    public String apply(@NonNull Integer integer, @NonNull Integer integer2) throws Exception {
+                        Log.d("RxSample", " zip" + integer + " : " + integer2);
+                        return integer + " : " + integer2;
+                    }
+                }
+        )
+                .subscribe(new DisposableObserver<String>() {
+                    @Override
+                    public void onNext(@NonNull String s) {
+                        Log.d("RxSample", " zip onNext" + s);
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.d("RxSample", " zip onError" + e.toString());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d("RxSample", " zip onComplete");
+                    }
+                });
+    }
+
+    private void combineLatest() {
+        Observable.combineLatest(
+                Observable
+                        .just(1, 2, 3)
+                        .subscribeOn(Schedulers.newThread())
+                        .doOnNext(new Consumer<Integer>() {
+                            @Override
+                            public void accept(Integer integer) throws Exception {
+                                Log.d("RxSample", "just1 : " + integer + " " + Thread.currentThread().getName());
+                            }
+                        })
+                , Observable
+                        .just(10, 20, 30, 40)
+                        .subscribeOn(Schedulers.newThread())
+                        .doOnNext(new Consumer<Integer>() {
+                            @Override
+                            public void accept(Integer integer) throws Exception {
+                                Log.d("RxSample", "just2 : " + integer + " " + Thread.currentThread().getName());
+                            }
+                        })
+                , new BiFunction<Integer, Integer, String>() {
+                    @Override
+                    public String apply(@NonNull Integer integer, @NonNull Integer integer2) throws Exception {
+                        return integer + " : " + integer2;
+                    }
+                }
+        )
+                .subscribe(new DisposableObserver<String>() {
+                    @Override
+                    public void onNext(@NonNull String s) {
+                        Log.d("RxSample", " combineLatest onNext" + s);
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.d("RxSample", " combineLatest onError" + e.toString());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d("RxSample", " combineLatest onComplete");
+                    }
+                });
+    }
+
+    private void merge() {
+        Observable.merge(
+                Observable
+                        .just(1, 2, 3, 4)
+                        .subscribeOn(Schedulers.newThread())
+                        .doOnNext(new Consumer<Integer>() {
+                            @Override
+                            public void accept(Integer integer) throws Exception {
+                                Log.d("RxSample", "just1 : " + integer + " " + Thread.currentThread().getName());
+                            }
+                        })
+                , Observable
+                        .just(10, 20, 30, 40)
+                        .subscribeOn(Schedulers.newThread())
+                        .doOnNext(new Consumer<Integer>() {
+                            @Override
+                            public void accept(Integer integer) throws Exception {
+                                Log.d("RxSample", "just2 : " + integer + " " + Thread.currentThread().getName());
+                            }
+                        })
+        )
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        Log.d("RxSample", "marge : " + integer);
+                    }
+                });
     }
 
 
@@ -438,7 +656,7 @@ public class MainActivity extends AppCompatActivity {
 //                }, new Consumer<Throwable>() {
 //                    @Override
 //                    public void accept(Throwable throwable) throws Exception {
-//                        Log.d("RxSamle", throwable.toString());
+//                        Log.d("RxSample", throwable.toString());
 //                    }
 //                }, new Action() {
 //                    @Override
